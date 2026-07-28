@@ -41,35 +41,62 @@
     <script>
         // Restituye las constantes con tus credenciales obtenidas de Supabase
         const SUPABASE_URL = 'https://ibddqzzqlxsygyctqmcl.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_t-F4Trlh63Q3OsBoIlNtiA_ffk17kbn';
+        const SUPABASE_KEY = 'TU_ANON_KEY';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // Captura del ID del evento desde los parámetros de la URL (?evento=1)
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const eventoId = urlParams.get('evento') || 1; // Por defecto asigna ID 1 si no viene en la URL
-
+        const eventoId = urlParams.get('evento') || 1;
+        
         const form = document.getElementById('registroForm');
         const mensaje = document.getElementById('mensaje');
         const btnEnviar = document.getElementById('btnEnviar');
-
+        
+        // Validación previa: Verificar si el evento existe y está activo
+        async function verificarEvento() {
+            const { data, error } = await supabase
+                .from('eventos')
+                .select('estado, nombre_evento')
+                .eq('id', eventoId)
+                .single();
+        
+            if (error || !data) {
+                mostrarMensaje('El evento especificado no existe.', 'bg-red-900/50 text-red-300 border border-red-700');
+                btnEnviar.disabled = true;
+                return false;
+            }
+        
+            if (data.estado === 'FINALIZADO') {
+                mostrarMensaje(`El evento "${data.nombre_evento}" ha finalizado. No se aceptan más registros.`, 'bg-amber-900/50 text-amber-300 border border-amber-700');
+                btnEnviar.disabled = true;
+                return false;
+            }
+        
+            return true;
+        }
+        
+        verificarEvento();
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Re-verificar estado antes de insertar
+            const activo = await verificarEvento();
+            if (!activo) return;
+        
             btnEnviar.disabled = true;
             btnEnviar.textContent = "Procesando...";
-
+        
             const nombre = document.getElementById('nombre').value.trim();
             const cedula = document.getElementById('cedula').value.trim();
             const telefono = document.getElementById('telefono').value.trim();
-
-            // Inserción en la base de datos respetando las políticas de RLS
+        
             const { data, error } = await supabase
                 .from('participantes')
                 .insert([{ evento_id: parseInt(eventoId), nombre, cedula, telefono }]);
-
+        
             if (error) {
-                // El código de error PostgreSQL '23505' identifica violación de restricción de unicidad
                 if (error.code === '23505') {
-                    mostrarMensaje('Esta cédula ya está registrada en este concurso.', 'bg-red-900/50 text-red-300 border border-red-700');
+                    mostrarMensaje('Esta cédula ya está registrada en este evento.', 'bg-red-900/50 text-red-300 border border-red-700');
                 } else {
                     mostrarMensaje('Error al registrar. Inténtalo de nuevo.', 'bg-red-900/50 text-red-300 border border-red-700');
                 }
@@ -77,11 +104,11 @@
                 mostrarMensaje('¡Registro exitoso! Ya estás participando.', 'bg-green-900/50 text-green-300 border border-green-700');
                 form.reset();
             }
-
+        
             btnEnviar.disabled = false;
             btnEnviar.textContent = "Registrarme";
         });
-
+        
         function mostrarMensaje(texto, clases) {
             mensaje.textContent = texto;
             mensaje.className = `mt-4 text-center font-semibold text-sm p-3 rounded-xl ${clases}`;
