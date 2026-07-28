@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Participantes</title>
+    <!-- Tailwind CSS para diseño moderno y ligero -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Cliente oficial de Supabase para comunicación con PostgreSQL -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <h2 class="text-2xl font-bold text-center text-indigo-400 mb-6">Registro para el Sorteo</h2>
+        
+        <form id="registroForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-300">Nombre Completo</label>
+                <input type="text" id="nombre" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-slate-300">Cédula de Identidad</label>
+                <input type="text" id="cedula" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-300">Teléfono / WhatsApp</label>
+                <input type="tel" id="telefono" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
+            </div>
+
+            <button type="submit" id="btnEnviar" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors">
+                Registrarme
+            </button>
+        </form>
+
+        <div id="mensaje" class="mt-4 text-center font-semibold text-sm hidden p-3 rounded-xl"></div>
+    </div>
+
+    <script>
+        // Restituye las constantes con tus credenciales obtenidas de Supabase
+        const SUPABASE_URL = 'https://ibddqzzqlxsygyctqmcl.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_t-F4Trlh63Q3OsBoIlNtiA_ffk17kbn';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Captura del ID del evento desde los parámetros de la URL (?evento=1)
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventoId = urlParams.get('evento') || 1; // Por defecto asigna ID 1 si no viene en la URL
+
+        const form = document.getElementById('registroForm');
+        const mensaje = document.getElementById('mensaje');
+        const btnEnviar = document.getElementById('btnEnviar');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btnEnviar.disabled = true;
+            btnEnviar.textContent = "Procesando...";
+
+            const nombre = document.getElementById('nombre').value.trim();
+            const cedula = document.getElementById('cedula').value.trim();
+            const telefono = document.getElementById('telefono').value.trim();
+
+            // Inserción en la base de datos respetando las políticas de RLS
+            const { data, error } = await supabase
+                .from('participantes')
+                .insert([{ evento_id: parseInt(eventoId), nombre, cedula, telefono }]);
+
+            if (error) {
+                // El código de error PostgreSQL '23505' identifica violación de restricción de unicidad
+                if (error.code === '23505') {
+                    mostrarMensaje('Esta cédula ya está registrada en este concurso.', 'bg-red-900/50 text-red-300 border border-red-700');
+                } else {
+                    mostrarMensaje('Error al registrar. Inténtalo de nuevo.', 'bg-red-900/50 text-red-300 border border-red-700');
+                }
+            } else {
+                mostrarMensaje('¡Registro exitoso! Ya estás participando.', 'bg-green-900/50 text-green-300 border border-green-700');
+                form.reset();
+            }
+
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = "Registrarme";
+        });
+
+        function mostrarMensaje(texto, clases) {
+            mensaje.textContent = texto;
+            mensaje.className = `mt-4 text-center font-semibold text-sm p-3 rounded-xl ${clases}`;
+            mensaje.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
