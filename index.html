@@ -42,7 +42,8 @@
         // Restituye las constantes con tus credenciales obtenidas de Supabase
         const SUPABASE_URL = 'https://ibddqzzqlxsygyctqmcl.supabase.co';
         const SUPABASE_KEY = 'TU_ANON_KEY';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        //const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const urlParams = new URLSearchParams(window.location.search);
         const eventoId = urlParams.get('evento') || 1;
