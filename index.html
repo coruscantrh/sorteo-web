@@ -103,55 +103,63 @@
         // ============================================================================
 
         async function verificarEvento() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramId = urlParams.get('evento_id');
+    
+        if (!paramId) {
+            document.getElementById('titulo-evento').innerText = "Registro Deshabilitado";
+            mostrarMensajeBloqueo("No se especificó un ID de evento en la URL.");
+            return;
+        }
+    
+        eventoIdActivo = parseInt(paramId, 10);
+    
+        try {
             /*
              * EXPLICACIÓN PEDAGÓGICA:
-             * 'window.location.search' analiza la cadena de consulta (query string) de la barra
-             * de direcciones. Parseamos el parámetro 'evento_id' dinámicamente en tiempo de carga.
+             * Cambiamos '.single()' por '.maybeSingle()'. 
+             * '.single()' lanza un error HTTP 406 si la respuesta no contiene exactamente una fila.
+             * '.maybeSingle()' retorna 'null' limpiamente en 'data' si no hay coincidencia,
+             * permitiendo diferenciar entre un registro inexistente y un error de la API.
              */
-            const urlParams = new URLSearchParams(window.location.search);
-            const paramId = urlParams.get('evento_id');
-
-            if (!paramId) {
-                document.getElementById('titulo-evento').innerText = "Registro Deshabilitado";
-                mostrarMensajeBloqueo("No se especificó un ID de evento en la URL (ej. ?evento_id=2).");
+            const { data: evento, error } = await supabaseClient
+                .from('eventos')
+                .select('*')
+                .eq('id', eventoIdActivo)
+                .maybeSingle();
+    
+            // LOG DE DEPURACIÓN CRÍTICO
+            console.log("== DEPURACIÓN SUPABASE ==");
+            console.log("ID consultado:", eventoIdActivo);
+            console.log("Datos recibidos (evento):", evento);
+            console.log("Error de la API (error):", error);
+    
+            if (error) {
+                document.getElementById('titulo-evento').innerText = "Error de Consulta";
+                mostrarMensajeBloqueo(`Error de la API de Supabase: ${error.message} (Código: ${error.code})`);
                 return;
             }
-
-            eventoIdActivo = parseInt(paramId, 10);
-
-            try {
-                // Consulta SQL mediante PostgREST filtrando estrictamente por la clave primaria
-                const { data: evento, error } = await supabaseClient
-                    .from('eventos')
-                    .select('*')
-                    .eq('id', eventoIdActivo)
-                    .single();
-
-                if (error || !evento) {
-                    document.getElementById('titulo-evento').innerText = "Evento No Encontrado";
-                    mostrarMensajeBloqueo(`El evento con ID #${eventoIdActivo} no existe en el sistema.`);
-                    return;
-                }
-
-                // Renderizar el título oficial registrado en la base de datos
-                document.getElementById('titulo-evento').innerText = evento.nombre_evento;
-
-                /*
-                 * REGLA DE NEGOCIO:
-                 * Únicamente los eventos con estado 'EN_PROCESO' aceptan nuevos registros.
-                 * La comparación es estricta para evitar inconsistencias de formato.
-                 */
-                if (evento.estado !== 'EN_PROCESO') {
-                    mostrarMensajeBloqueo(`El evento "${evento.nombre_evento}" ha finalizado. No se aceptan más registros.`);
-                } else {
-                    ocultarMensajeBloqueo();
-                }
-
-            } catch (err) {
-                console.error("Error crítico de red o consulta:", err);
-                mostrarMensajeBloqueo("Error al conectar con la base de datos de eventos.");
+    
+            if (!evento) {
+                document.getElementById('titulo-evento').innerText = "Evento No Encontrado";
+                mostrarMensajeBloqueo(`El evento con ID #${eventoIdActivo} no existe en la base de datos.`);
+                return;
             }
+    
+            // Si el evento existe y no hay errores:
+            document.getElementById('titulo-evento').innerText = evento.nombre_evento;
+    
+            if (evento.estado !== 'EN_PROCESO') {
+                mostrarMensajeBloqueo(`El evento "${evento.nombre_evento}" ha finalizado. No se aceptan más registros.`);
+            } else {
+                ocultarMensajeBloqueo();
+            }
+    
+        } catch (err) {
+            console.error("Excepción inesperada:", err);
+            mostrarMensajeBloqueo("Error crítico al conectar con el servidor.");
         }
+    }
 
         // ============================================================================
         // 4. INSERCIÓN DE PARTICIPANTES (OPERACIÓN DML)
