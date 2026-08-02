@@ -124,7 +124,7 @@
                 const { data: evento, error } = await supabaseClient
                     .from('eventos')
                     .select('*')
-                    .eq('id', eventoIdActivo)
+                    .eq('Id', eventoIdActivo)
                     .single();
 
                 if (error || !evento) {
