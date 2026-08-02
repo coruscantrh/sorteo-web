@@ -3,118 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Participantes</title>
-    <!-- Tailwind CSS para diseño moderno y ligero -->
+    <title>Registro para el Sorteo</title>
+    <!-- Tailwind CSS (CDN para prototipado rápido) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Cliente oficial de Supabase para comunicación con PostgreSQL -->
+    <!-- SDK Oficial de Supabase JS v2 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
 
-    <div class="bg-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
-        <h2 class="text-2xl font-bold text-center text-indigo-400 mb-6">Registro para el Sorteo</h2>
-        
-        <form id="registroForm" class="space-y-4">
+    <div class="max-w-md w-full bg-slate-800 rounded-xl shadow-2xl p-6 border border-slate-700">
+        <!-- Título Dinámico del Evento -->
+        <h1 id="titulo-evento" class="text-2xl font-bold text-center text-indigo-400 mb-6">
+            Cargando evento...
+        </h1>
+
+        <!-- Contenedor de Mensaje de Bloqueo (Oculto por defecto) -->
+        <div id="mensaje-bloqueo" class="hidden bg-amber-600/30 border border-amber-500 text-amber-200 text-center p-4 rounded-lg mb-6 text-sm font-medium">
+            <!-- Texto dinámico cuando el evento está finalizado o no existe -->
+        </div>
+
+        <!-- Formulario de Registro -->
+        <form id="registro-form" onsubmit="registrarParticipante(event)" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-slate-300">Nombre Completo</label>
-                <input type="text" id="nombre" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-slate-300">Cédula de Identidad</label>
-                <input type="text" id="cedula" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
+                <label for="nombre" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Nombre Completo
+                </label>
+                <input type="text" id="nombre" required placeholder="Ej. Carlos Mendoza"
+                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-slate-300">Teléfono / WhatsApp</label>
-                <input type="tel" id="telefono" required class="w-full mt-1 p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white">
+                <label for="cedula" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Cédula de Identidad
+                </label>
+                <input type="text" id="cedula" required placeholder="Ej. 0912345678"
+                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors">
             </div>
 
-            <button type="submit" id="btnEnviar" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors">
+            <div>
+                <label for="telefono" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Teléfono / WhatsApp
+                </label>
+                <input type="tel" id="telefono" required placeholder="Ej. 0987654321"
+                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+            </div>
+
+            <button type="submit" id="btn-submit"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-600/30">
                 Registrarme
             </button>
         </form>
-
-        <div id="mensaje" class="mt-4 text-center font-semibold text-sm hidden p-3 rounded-xl"></div>
     </div>
 
+    <!-- LÓGICA DE INTERACCIÓN Y CONEXIÓN CON SUPABASE -->
     <script>
-        // Restituye las constantes con tus credenciales obtenidas de Supabase
-        const SUPABASE_URL = 'https://ibddqzzqlxsygyctqmcl.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_t-F4Trlh63Q3OsBoIlNtiA_ffk17kbn';
-        //const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ============================================================================
+        // 1. CONFIGURACIÓN E INICIALIZACIÓN DE SUPABASE
+        // ============================================================================
+        
+        // Reemplaza estas dos cadenas con tus credenciales reales del panel de Supabase
+        const SUPABASE_URL = "https://tu-proyecto.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_t-F4Trlh63Q3OsBoIlNtiA_ffk17kbn";
+
+        /*
+         * EXPLICACIÓN PEDAGÓGICA:
+         * Renombramos la variable a 'supabaseClient' para evitar la colisión de identificadores
+         * con la librería global 'supabase' del CDN. Esto resuelve el 'Uncaught SyntaxError'.
+         */
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const eventoId = urlParams.get('evento') || 1;
-        
-        const form = document.getElementById('registroForm');
-        const mensaje = document.getElementById('mensaje');
-        const btnEnviar = document.getElementById('btnEnviar');
-        
-        // Validación previa: Verificar si el evento existe y está activo
-        async function verificarEvento() {
-            const { data, error } = await supabaseClient
-                .from('eventos')
-                .select('estado, nombre_evento')
-                .eq('id', eventoId)
-                .single();
-        
-            if (error || !data) {
-                mostrarMensaje('El evento especificado no existe.', 'bg-red-900/50 text-red-300 border border-red-700');
-                btnEnviar.disabled = true;
-                return false;
-            }
-        
-            if (data.estado === 'FINALIZADO') {
-                mostrarMensaje(`El evento "${data.nombre_evento}" ha finalizado. No se aceptan más registros.`, 'bg-amber-900/50 text-amber-300 border border-amber-700');
-                btnEnviar.disabled = true;
-                return false;
-            }
-        
-            return true;
-        }
-        
-        verificarEvento();
-        
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+
+        // Variable global en memoria para mantener la referencia del ID activo en esta sesión
+        let eventoIdActivo = null;
+
+        // ============================================================================
+        // 2. FUNCIONES DE INTERFAZ Y MANEJO DEL DOM
+        // ============================================================================
+
+        function mostrarMensajeBloqueo(mensaje) {
+            const divBloqueo = document.getElementById('mensaje-bloqueo');
+            const form = document.getElementById('registro-form');
             
-            // Re-verificar estado antes de insertar
-            const activo = await verificarEvento();
-            if (!activo) return;
-        
-            btnEnviar.disabled = true;
-            btnEnviar.textContent = "Procesando...";
-        
+            divBloqueo.innerText = mensaje;
+            divBloqueo.classList.remove('hidden');
+            
+            // Ocultar los campos del formulario cuando el evento no permite registros
+            form.classList.add('hidden');
+        }
+
+        function ocultarMensajeBloqueo() {
+            const divBloqueo = document.getElementById('mensaje-bloqueo');
+            const form = document.getElementById('registro-form');
+            
+            divBloqueo.classList.add('hidden');
+            form.classList.remove('hidden');
+        }
+
+        // ============================================================================
+        // 3. VERIFICACIÓN DINÁMICA DEL EVENTO
+        // ============================================================================
+
+        async function verificarEvento() {
+            /*
+             * EXPLICACIÓN PEDAGÓGICA:
+             * 'window.location.search' analiza la cadena de consulta (query string) de la barra
+             * de direcciones. Parseamos el parámetro 'evento_id' dinámicamente en tiempo de carga.
+             */
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramId = urlParams.get('evento_id');
+
+            if (!paramId) {
+                document.getElementById('titulo-evento').innerText = "Registro Deshabilitado";
+                mostrarMensajeBloqueo("No se especificó un ID de evento en la URL (ej. ?evento_id=2).");
+                return;
+            }
+
+            eventoIdActivo = parseInt(paramId, 10);
+
+            try {
+                // Consulta SQL mediante PostgREST filtrando estrictamente por la clave primaria
+                const { data: evento, error } = await supabaseClient
+                    .from('eventos')
+                    .select('*')
+                    .eq('id', eventoIdActivo)
+                    .single();
+
+                if (error || !evento) {
+                    document.getElementById('titulo-evento').innerText = "Evento No Encontrado";
+                    mostrarMensajeBloqueo(`El evento con ID #${eventoIdActivo} no existe en el sistema.`);
+                    return;
+                }
+
+                // Renderizar el título oficial registrado en la base de datos
+                document.getElementById('titulo-evento').innerText = evento.nombre_evento;
+
+                /*
+                 * REGLA DE NEGOCIO:
+                 * Únicamente los eventos con estado 'EN_PROCESO' aceptan nuevos registros.
+                 * La comparación es estricta para evitar inconsistencias de formato.
+                 */
+                if (evento.estado !== 'EN_PROCESO') {
+                    mostrarMensajeBloqueo(`El evento "${evento.nombre_evento}" ha finalizado. No se aceptan más registros.`);
+                } else {
+                    ocultarMensajeBloqueo();
+                }
+
+            } catch (err) {
+                console.error("Error crítico de red o consulta:", err);
+                mostrarMensajeBloqueo("Error al conectar con la base de datos de eventos.");
+            }
+        }
+
+        // ============================================================================
+        // 4. INSERCIÓN DE PARTICIPANTES (OPERACIÓN DML)
+        // ============================================================================
+
+        async function registrarParticipante(event) {
+            // Evitamos que el navegador recargue la página nativamente tras el submit
+            event.preventDefault();
+
+            if (!eventoIdActivo) {
+                alert("Error: No hay un evento válido asociado para el registro.");
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = "Procesando...";
+
             const nombre = document.getElementById('nombre').value.trim();
             const cedula = document.getElementById('cedula').value.trim();
             const telefono = document.getElementById('telefono').value.trim();
-        
-            const { data, error } = await supabaseClient
-                .from('participantes')
-                .insert([{ evento_id: parseInt(eventoId), nombre, cedula, telefono }]);
-        
-            if (error) {
-                if (error.code === '23505') {
-                    mostrarMensaje('Esta cédula ya está registrada en este evento.', 'bg-red-900/50 text-red-300 border border-red-700');
-                } else {
-                    mostrarMensaje('Error al registrar. Inténtalo de nuevo.', 'bg-red-900/50 text-red-300 border border-red-700');
+
+            try {
+                /*
+                 * EXPLICACIÓN PEDAGÓGICA:
+                 * Ejecutamos el 'INSERT' a la tabla 'participantes'. Si la cédula ya se encuentra
+                 * registrada en este MISMO 'evento_id', la restricción UNIQUE del esquema lanzarás
+                 * un error con código PostgreSQL '23505' (duplicate key), previniendo duplicados.
+                 */
+                const { data, error } = await supabaseClient
+                    .from('participantes')
+                    .insert([
+                        {
+                            evento_id: eventoIdActivo,
+                            nombre: nombre,
+                            cedula: cedula,
+                            telefono: telefono,
+                            ganador: false
+                        }
+                    ]);
+
+                if (error) {
+                    // Manejo especializado para duplicados por cédula
+                    if (error.code === '23505') {
+                        throw new Error("Esta cédula ya se encuentra registrada en este evento.");
+                    }
+                    throw error;
                 }
-            } else {
-                mostrarMensaje('¡Registro exitoso! Ya estás participando.', 'bg-green-900/50 text-green-300 border border-green-700');
-                form.reset();
+
+                alert("¡Registro completado con éxito! Ya estás participando.");
+                document.getElementById('registro-form').reset();
+
+            } catch (err) {
+                console.error("Fallo al insertar participante:", err);
+                alert("No se pudo completar el registro: " + err.message);
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Registrarme";
             }
-        
-            btnEnviar.disabled = false;
-            btnEnviar.textContent = "Registrarme";
-        });
-        
-        function mostrarMensaje(texto, clases) {
-            mensaje.textContent = texto;
-            mensaje.className = `mt-4 text-center font-semibold text-sm p-3 rounded-xl ${clases}`;
-            mensaje.classList.remove('hidden');
         }
+
+        // Suscribir la verificación automática al ciclo de vida del DOM
+        window.addEventListener('DOMContentLoaded', verificarEvento);
     </script>
 </body>
 </html>
