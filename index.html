@@ -104,7 +104,7 @@
 
         async function verificarEvento() {
         const urlParams = new URLSearchParams(window.location.search);
-        const paramId = urlParams.get('evento_id');
+        const paramId = urlParams.get('evento') || urlParams.get('evento_id');
     
         if (!paramId) {
             document.getElementById('titulo-evento').innerText = "Registro Deshabilitado";
